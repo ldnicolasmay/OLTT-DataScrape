@@ -1,6 +1,10 @@
 __pycache__/*
 .idea/*
 venv/*
+archive/*
+bin/*
+lib/*
+pyvenv.cfg
 .DS_Store
 *.csv
 *.xls*

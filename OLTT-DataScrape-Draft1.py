@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Import modules
 import os
@@ -13,7 +13,8 @@ import helper as hlp
 
 
 # Top-level directory to all OLTT data
-oltt_path = "/Users/ldmay/Box/Documents/OLTTDataScrape/OLTT Data/"
+# oltt_path = "/Users/ldmay/Box/Documents/OLTTDataScrape/OLTT Data/"
+oltt_path = "/Users/ldmay/Box/MADC Box Account/Clinical Core/OLTT/OLTT Data/"
 
 # Regex patterns for extracting IDs
 ptrn_id_from_path = re.compile(r'^.*\/(\d+)$', re.IGNORECASE)
@@ -62,7 +63,6 @@ records: List[Dict] = []
 # Walk over the directory tree to find OLTT data files
 print("Recursing through directory tree to find CSVs with OLTT data...")
 for path_dirs_files in os.walk(oltt_path):
-# for path_dirs_files in list(os.walk(oltt_path))[0:30]:
     # print(path_dirs_files)
     path, files = path_dirs_files[0], path_dirs_files[2]
 
@@ -222,20 +222,21 @@ for record in records:
 
 # Aggregate records into a DF
 print("Aggregating records... ")
-cols_redcap = ['ptid', 'redcap_event_name',
-               "dot_cal_aerr", "dot_cal_at",
-               "fr_aerr", "fr_at",
-               "cr_aerr", "cr_at",
-               "rt_correct", "ra_time",
-               "dot_cal_aerr_11a", "dot_cal_at_11a",
-               "fr_aerr_11a", "fr_at_11a",
-               "cr_aerr_11a", "cr_at_11a",
-               "rt_correct_11a", "ra_time_11a"]
-# print(pd.DataFrame.from_records(records))
+
+cols_id_vis = ['ptid', 'redcap_event_name']
+cols_set_7a = ["dot_cal_aerr", "dot_cal_at", "fr_aerr", "fr_at", "cr_aerr", "cr_at", "rt_correct", "ra_time"]
+cols_set_11a = ["dot_cal_aerr_11a", "dot_cal_at_11a", "fr_aerr_11a", "fr_at_11a",
+                "cr_aerr_11a", "cr_at_11a", "rt_correct_11a", "ra_time_11a"]
+cols_redcap = cols_id_vis + cols_set_7a + cols_set_11a
+
 df_oltt_all = pd.DataFrame.\
     from_records(records)[cols_redcap].\
-    sort_values(["ptid", "redcap_event_name"]).\
+    sort_values(cols_id_vis).\
     reset_index(drop=True)
+
+# Collapse 7A and 11A rows
+df_oltt_all = hlp.collapse_df_rows(df_oltt_all, grouping_cols=cols_id_vis,
+                                   left_cols=cols_set_7a, right_cols=cols_set_11a)
 
 # Split the OLTT DF into initial- and follow-up-visit DFs
 is_init_visit = df_oltt_all['redcap_event_name'] == 'visit_1_arm_1'
@@ -380,7 +381,9 @@ df_oltt_flt['oltt_complete'] = 2
 print("Writing CSV file for REDCap import... ")
 
 today = date.today()
-today_str = f"{today.year}-{today.month}-{today.day}"
+month_str = str(today.month) if len(str(today.month)) == 2 else "0" + str(today.month)
+day_str = str(today.day) if len(str(today.day)) == 2 else "0" + str(today.day)
+today_str = f"{today.year}-{month_str}-{day_str}"
 if not os.path.isdir("./oltt_data_to_import"):
     os.mkdir("./oltt_data_to_import")
 if not os.path.isdir(f"./oltt_data_to_import/{today_str}"):
